@@ -1,23 +1,18 @@
 #!/usr/bin/python
 
-
-"""
-uva-manger new id|name
-
-
-"""
-
-
-
-
-
 #the Settings for the uva-manager
 import settings
-
+#argparse for cli
 from argparse import ArgumentParser
+#urllib for webpage handeling
 import urllib.request as urlrequest
 from urllib.parse import urlencode
+#regex for fun
 import re
+#sys for precheck
+import sys
+#os for filepaths and so on
+import os
 
 def init_parser():
     parser = ArgumentParser() 
@@ -31,19 +26,40 @@ def init_parser():
 
 
 def new_problem(args):
-    print("NEW PROBLEM {}".format(args.id))
     pages_text = lookup_problem(args.id)
-    title = parse_title(pages_text[0])
-    (in_file,out_file) = parse_in_out(pages_text[1])
-    #print(title)
-    #print(in_file)
-    print(out_file)
+    title = parse_title(pages_text)
+    (in_file,out_file) = parse_in_out(pages_text)
+    env = {"id":args.id,"title":title,"in_file":in_file,"out_file":out_file}
+    new_problem_folder(env)
+
+
+def new_problem_folder(env):
+    print("new Problem")
+    folder = settings.SRCFOLDER
+    folder_title = settings.NAMEINGSTRING.format(id=env['id'],\
+            title=env['title'])
+    path = folder+folder_title
+    #create new problem set folder
+    if folder_title not in os.listdir(folder):
+        os.mkdir(path)
+        in_file = open(path+"/in","w")
+        out_file = open(path+"/out","w")
+        in_file.write(env['in_file'])
+        out_file.write(env['out_file'])
+        in_file.close()
+        out_file.close()
+    pass
+
+
 
 def parse_title(text):
-    pattern = r"(<p><font size=\"5\" color=\"red\"><b>|</b></font></p>|\\t\\n\\n|\s)"
-    matcher = re.compile(pattern)
-    text = matcher.sub("",text)
-    return str(text)
+    title_pattern = r"<META NAME=\"description\" CONTENT=\"\D*\">\\n<META NAME=\"keywords\""
+    title_sub_pattern =r"<META NAME=\"description\" CONTENT=\"|\">\\n<META NAME=\"keywords\""
+    matcher = re.compile(title_pattern)
+    remover = re.compile(title_sub_pattern)
+    title_raw = matcher.findall(text)[0]
+    title = remover.sub("",title_raw)
+    return str(title)
 
 def parse_input(text):
     pattern_input_text_raw = r"Sample Input.*</PRE>\\n<P>\\n<H2>"
@@ -69,21 +85,20 @@ def parse_in_out(text):
 
 def lookup_problem(id):
     webpage = "http://acm.uva.es/local/online_judge/gotosearch_uva.php"
-    title_params = {'p' : id,'info':'info'}
-    title_data = urlencode(title_params)
-    title_binary_data = title_data.encode("utf8")
-    title_page = urlrequest.urlopen(webpage,title_binary_data)
     text_params = {'p':id,'goto':"Go to"}
     text_data = urlencode(text_params)
     text_binary_data = text_data.encode("utf8")
     text_page = urlrequest.urlopen(webpage,text_binary_data)
-    return (str(title_page.read()),str(text_page.read()))
+    return str(text_page.read())
 
 
 
 def main(): 
     parser = init_parser()
     args = parser.parse_args()
+    if(len(sys.argv) == 1):
+        parser.print_help()
+        return
     args.func(args)
     
 
